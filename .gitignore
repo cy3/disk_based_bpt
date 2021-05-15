@@ -1,0 +1,16 @@
+*.swp
+*.o
+*.o.json
+*.a
+
+tags
+.DS_Store
+.cache
+compile_commands.json
+project1/all.sql
+test_code/
+project5_backup/
+main
+DATA*
+project6/logfile.data
+project6/logmsg.txt
