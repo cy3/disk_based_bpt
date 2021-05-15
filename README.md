@@ -53,7 +53,7 @@ buffer manager 자체에 대한 lock을 위해 `buffer mgr latch`를, 페이지�
 페이지를 읽고 쓰고, 파일을 열고 닫고 크기를 변경하는 함수들을 low level로 제공한다.
 
 # Concurrency Control Implementation
-concurrency control은 index layer, recovery layer, interface layer 와 걸쳐서 구현되었습니다. interface에서는 `commit`, `abort`, `begin` 함수를 `trx.cc` 파일에서 호출합니다. `find_trx.cc` 에서는, 트랜잭션이 레코드에 atomicity하게 접근하기 위해 `lock_acquire` 함수를 `lock.cc`  함수를 통해 접근합니다. `lock.cc` 에서는 `trx.cc` 의  트랜잭션 자료구조과 자신의 `lock table` 자료구조를 활용하여 deadlock 등을 검사합니다.
+concurrency control은 index layer, recovery layer, interface layer 와 걸쳐서 구현되었습니다. interface에서는 `commit`, `abort`, `begin` 함수를 `trx.cc` 파일에서 호출합니다. `find_trx.cc` 에서는, 트랜잭션이 레코드에 atomicity하게 접근하기 위해 `lock_acquire` 함수를 `lock.cc`  함수를 통해 접근합니다. `lock.cc` 에서는 `trx.cc` 의  트랜잭션 자료구조과 자신의 `lock table` 자료구조를 활용하여 deadlock 등을 검사합니다.
 
 ## trx table and lock table
 `lock.cc` 에서는 레코드별로 어떤 트랜잭션이 접근하고 있는지 검사하기 위해 hash table을 사용해 `lock table` 자료구조를 유지합니다. 이때 `lock manager latch` 를 통해 하나의 스레드만 접근해서 자료구조를 업데이트 하도록 만듭니다.
@@ -61,11 +61,13 @@ concurrency control은 index layer, recovery layer, interface layer 와 걸쳐�
 
 ## lock dependency
 ![](README/1A5A4B2D-A1F3-46DB-9EB1-8AC1FF4245DF.png)
+
 현재 구현에서는 락의 잡는 순서가 위와 같이 정해지게 되었습니다.
 만약 control flow 중에 이 lock 순서를 지키지 않고 거꾸로 잡는 경우가 존재할 경우, deadlock이 발생하게 됩니다.
 
 ## update trx
 ![](README/43.png)
+
 concurrency control를 구현하기 위해서는, index layer의 find, update 또한 해당 조건을 만족하도록 바뀌어야 합니다. 여기서 find는 update에서 페이지 업데이트 부분만 빼면 되기 때문에, update를 자세히 다루도록 하겠습니다.
 
 가장 먼저 주어진 trx가 유효한 trx인지 확인합니다. `trx_vaild` 이 함수는  해당 trx num이 현재 trx table에 존재하는지 확인합니다. 이를 통해서 abort되거나 끝난 trx에 대한 예외처리를 진행합니다.
@@ -79,6 +81,7 @@ concurrency control를 구현하기 위해서는, index layer의 find, update �
 
 ## lock acquire
 ![](README/123.png)
+
 `lock.cc` 파일의 함수입니다. 먼저 hash table에서 해당 id, key의 자료구조로 find를 수행합니다.
 만약 찾지 못했다면, lock table에 존재하지 않는다는 뜻이므로 entry를 초기화 해 hash table에 insert를 수행합니다.
 그 후 entry에 lock을 초기화해서 추가해줍니다. 
@@ -93,6 +96,7 @@ null이 아니라면 이미 다른 쓰레드가 있다는 것이므로, entry에
 
 ## deadlock detection
 ![](README/%E1%84%8C%E1%85%A6%E1%84%86%E1%85%A9%E1%86%A8_%E1%84%8B%E1%85%A5%E1%86%B9%E1%84%82%E1%85%B3%E1%86%AB_%E1%84%83%E1%85%A1%E1%84%8B%E1%85%B5%E1%84%8B%E1%85%A5%E1%84%80%E1%85%B3%E1%84%85%E1%85%A2%E1%86%B7-%E1%84%91%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%B5-2.png)
+
 이 함수는 lock table 자료구조를 돌며 depth-first search를 수행합니다.
 현재 trx가 다음 lock이 존재한다면, 재귀 호출로 끝부터 업데이트합니다.
 그 후, 현재 lock이 위치한 entry에서 앞으로 이동하면서 자신과 exclusive 한 lock이 존재한다면, 해당 trx와 wait하는 종속성이 생기는 것이므로 wait graph에 edge를 추가하고, 해당 trx로 wait graph를 재귀적으로 build합니다.
