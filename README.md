@@ -1,6 +1,3 @@
-# README.md
-#hanyang/3-2/DBMS
-
 # Table of Contents
 - [Overall Layered Architecture](#overall-layered-architecture)
     + [interface.c](#interfacec)
